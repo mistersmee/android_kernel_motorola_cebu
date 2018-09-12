@@ -45,7 +45,7 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
-static void dsi_display_is_probed(int enable_idx, int probe_status);
+static void dsi_display_is_probed(int enable_idx, int probe_status, const char *pname);
 
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
@@ -5724,7 +5724,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		if (rc)
 			goto end;
 		else
-			dsi_display_is_probed(enable_idx, rc);
+			dsi_display_is_probed(enable_idx, rc, display->name);
 	}
 
 	return 0;
@@ -7836,6 +7836,7 @@ struct dsi_enable_status {
 	struct dsi_display *display;
 	int probed;
 	bool enable;
+	char pname[128];
 };
 
 static struct dsi_enable_status enable_status[2] = {
@@ -7847,11 +7848,14 @@ static struct dsi_enable_status enable_status[2] = {
 	},
 };
 
-static void dsi_display_is_probed (int enable_idx, int probe_status)
+static void dsi_display_is_probed (int enable_idx, int probe_status,
+					const char *pname)
 {
 	enable_status[enable_idx].probed = probe_status;
-	pr_debug("display->drm_conn[%d] probe set =%d\n",
-					enable_idx, probe_status);
+	strncpy(enable_status[enable_idx].pname, pname,
+			sizeof(enable_status[enable_idx].pname));
+	DSI_DEBUG("display->drm_conn[%d] set: probe =%d, name =%s\n",
+		enable_idx, probe_status, pname);
 }
 
 static int dsi_display_enable_status (struct dsi_display *display, bool enable)
@@ -7877,7 +7881,7 @@ static int dsi_display_enable_status (struct dsi_display *display, bool enable)
 	return ret;
 }
 
-bool dsi_display_is_panel_enable (int panel_index, int *probe_status)
+bool dsi_display_is_panel_enable (int panel_index, int *probe_status, char **pname)
 {
 	struct dsi_display *display;
 	bool enable = false;
@@ -7892,6 +7896,8 @@ bool dsi_display_is_panel_enable (int panel_index, int *probe_status)
 
 	if (probe_status)
 		*probe_status = enable_status[panel_index].probed;
+	if (pname)
+		*pname = &enable_status[panel_index].pname[0];
 
 	display = enable_status[panel_index].display;
 	if (display) {
