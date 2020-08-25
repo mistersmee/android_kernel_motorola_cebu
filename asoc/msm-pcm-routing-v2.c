@@ -21901,6 +21901,13 @@ static const struct snd_kcontrol_new sbus_6_rx_port_mixer_controls[] = {
 	msm_routing_put_port_mixer),
 };
 
+static const struct snd_kcontrol_new sbus_7_rx_port_mixer_controls[] = {
+	SOC_DOUBLE_EXT("SLIM_8_TX", SND_SOC_NOPM,
+	MSM_BACKEND_DAI_SLIMBUS_7_RX,
+	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+};
+
 static const struct snd_kcontrol_new bt_sco_rx_port_mixer_controls[] = {
 	SOC_DOUBLE_EXT("SLIM_1_TX", SND_SOC_NOPM,
 	MSM_BACKEND_DAI_INT_BT_SCO_RX,
@@ -21957,6 +21964,10 @@ static const struct snd_kcontrol_new usb_rx_port_mixer_controls[] = {
 	SOC_DOUBLE_EXT("USB_AUDIO_TX", SND_SOC_NOPM,
 	MSM_BACKEND_DAI_USB_RX,
 	MSM_BACKEND_DAI_USB_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	SOC_DOUBLE_EXT("SLIM_8_TX", SND_SOC_NOPM,
+	MSM_BACKEND_DAI_USB_RX,
+	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
 };
 
@@ -22501,6 +22512,11 @@ static const struct snd_kcontrol_new cdc_dma_rx_1_switch_mixer_controls =
 	msm_routing_put_switch_mixer);
 
 static const struct snd_kcontrol_new slim6_fm_switch_mixer_controls =
+	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
+	0, 1, 0, msm_routing_get_switch_mixer,
+	msm_routing_put_switch_mixer);
+
+static const struct snd_kcontrol_new slim7_fm_switch_mixer_controls =
 	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
 	0, 1, 0, msm_routing_get_switch_mixer,
 	msm_routing_put_switch_mixer);
@@ -23850,6 +23866,26 @@ static const char * const int4_mi2s_rx_vi_fb_tx_stereo_mux_text[] = {
 	"ZERO", "INT5_MI2S_TX"
 };
 
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+static const char * const pri_mi2s_rx_vi_fb_tx_mux_text[] = {
+	"ZERO", "PRI_MI2S_TX"
+};
+
+static const int const pri_mi2s_rx_vi_fb_tx_value[] = {
+	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_PRI_MI2S_TX
+};
+
+static const struct soc_enum pri_mi2s_rx_vi_fb_mux_enum =
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
+	ARRAY_SIZE(pri_mi2s_rx_vi_fb_tx_mux_text),
+	pri_mi2s_rx_vi_fb_tx_mux_text, pri_mi2s_rx_vi_fb_tx_value);
+
+static const struct snd_kcontrol_new pri_mi2s_rx_vi_fb_mux =
+	SOC_DAPM_ENUM_EXT("PRI_MI2S_RX_VI_FB_MUX",
+	pri_mi2s_rx_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
+	spkr_prot_put_vi_lch_port);
+#endif
+
 static const int slim0_rx_vi_fb_tx_lch_value[] = {
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SLIMBUS_4_TX
 };
@@ -24241,6 +24277,9 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_SWITCH("RX_CDC_DMA_RX_1_DL_HL", SND_SOC_NOPM, 0, 0,
 				&cdc_dma_rx_1_switch_mixer_controls),
 
+	SND_SOC_DAPM_SWITCH("SLIMBUS7_DL_HL", SND_SOC_NOPM, 0, 0,
+				&slim7_fm_switch_mixer_controls),
+
 	/* Mixer definitions */
 	SND_SOC_DAPM_MIXER("SLIMBUS_0_RX Audio Mixer", SND_SOC_NOPM, 0, 0,
 	slimbus_rx_mixer_controls, ARRAY_SIZE(slimbus_rx_mixer_controls)),
@@ -24461,6 +24500,11 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_MIXER("SLIMBUS_6_RX Port Mixer",
 	SND_SOC_NOPM, 0, 0, sbus_6_rx_port_mixer_controls,
 	ARRAY_SIZE(sbus_6_rx_port_mixer_controls)),
+
+	SND_SOC_DAPM_MIXER("SLIMBUS_7_RX Port Mixer",
+	SND_SOC_NOPM, 0, 0, sbus_7_rx_port_mixer_controls,
+	ARRAY_SIZE(sbus_7_rx_port_mixer_controls)),
+
 	SND_SOC_DAPM_MIXER("WSA_CDC_DMA_RX_0 Port Mixer", SND_SOC_NOPM, 0, 0,
 	wsa_cdc_dma_rx_0_port_mixer_controls,
 	ARRAY_SIZE(wsa_cdc_dma_rx_0_port_mixer_controls)),
@@ -24911,8 +24955,14 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets_mi2s[] = {
 	ARRAY_SIZE(int4_mi2s_rx_port_mixer_controls)),
 	/* lsm mixer definitions */
 	/* Virtual Pins to force backends ON atm */
+
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+	SND_SOC_DAPM_MUX("PRI_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
+				&pri_mi2s_rx_vi_fb_mux),
+#else
 	SND_SOC_DAPM_MUX("PRI_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
 				&mi2s_rx_vi_fb_mux),
+#endif
 	SND_SOC_DAPM_MUX("INT4_MI2S_RX_VI_FB_MONO_CH_MUX", SND_SOC_NOPM, 0, 0,
 				&int4_mi2s_rx_vi_fb_mono_ch_mux),
 	SND_SOC_DAPM_MUX("INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", SND_SOC_NOPM, 0, 0,
@@ -26747,6 +26797,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"RX_CDC_DMA_RX_1_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"RX_CDC_DMA_RX_1", NULL, "RX_CDC_DMA_RX_1_DL_HL"},
 	{"TX3_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_3"},
+
+	{"SLIMBUS7_DL_HL", "Switch", "CDC_DMA_DL_HL"},
+	{"SLIMBUS_7_RX", NULL, "SLIMBUS7_DL_HL"},
+	{"SLIMBUS_7_RX Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
+	{"SLIMBUS_7_RX", NULL, "SLIMBUS_7_RX Port Mixer"},
+
 	{"LSM1 Mixer", "SLIMBUS_0_TX", "SLIMBUS_0_TX"},
 	{"LSM1 Mixer", "SLIMBUS_1_TX", "SLIMBUS_1_TX"},
 	{"LSM1 Mixer", "SLIMBUS_3_TX", "SLIMBUS_3_TX"},
@@ -26886,8 +26942,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"AFE_PCM_RX Port Mixer", "SLIM_1_TX", "SLIMBUS_1_TX"},
 	{"PCM_RX", NULL, "AFE_PCM_RX Port Mixer"},
 	{"USB_AUDIO_RX Port Mixer", "USB_AUDIO_TX", "USB_AUDIO_TX"},
+	{"USB_AUDIO_RX Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
 	{"USB_AUDIO_RX", NULL, "USB_AUDIO_RX Port Mixer"},
-	{"USB_DL_HL", "Switch", "USBAUDIO_DL_HL"},
+	{"USB_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"USB_AUDIO_RX", NULL, "USB_DL_HL"},
 	{"USBAUDIO_UL_HL", NULL, "USB_AUDIO_TX"},
 
@@ -29905,7 +29962,7 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"INT0_MI2S_RX", NULL, "INT0_MI2S_RX_DL_HL"},
 	{"INT4_MI2S_RX_DL_HL", "Switch", "INT4_MI2S_DL_HL"},
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_DL_HL"},
-	{"PRI_MI2S_RX_DL_HL", "Switch", "PRI_MI2S_DL_HL"},
+	{"PRI_MI2S_RX_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
 	{"SEC_MI2S_RX_DL_HL", "Switch", "SEC_MI2S_DL_HL"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
@@ -30080,8 +30137,11 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"INT5_MI2S_TX", NULL, "BE_IN"},
 	{"SEC_MI2S_TX", NULL, "BE_IN"},
 	{"SENARY_MI2S_TX", NULL, "BE_IN"},
-
+#ifdef CONFIG_SND_SMARTPA_AW882XX
+	{"PRI_MI2S_RX_VI_FB_MUX", "PRI_MI2S_TX", "PRI_MI2S_TX"},
+#else
 	{"PRI_MI2S_RX_VI_FB_MUX", "SENARY_TX", "SENARY_TX"},
+#endif
 	{"INT4_MI2S_RX_VI_FB_MONO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_VI_FB_MUX"},
