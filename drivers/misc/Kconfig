@@ -604,6 +604,7 @@ config QTI_XR_SMRTVWR_MISC
 	  driver initializes gpios, enables/disables LDOs that are part of
 	  XR standalone reference device.
 
+source "drivers/misc/awinic/Kconfig"
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
