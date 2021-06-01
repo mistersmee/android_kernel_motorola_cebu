@@ -874,4 +874,19 @@ config INPUT_SC27XX_VIBRA
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
 
+config INPUT_QPNP_POWER_ON_MMI
+	tristate "Moto QPNP PMIC Power-on support"
+	depends on SPMI
+	help
+	  This option enables device driver support for the power-on
+	  functionality of Qualcomm Technologies, Inc. PNP PMICs.  It supports
+	  reporting the change in status of the KPDPWR_N line (connected to the
+	  power-key) as well as reset features.
+
+config INPUT_FPC1020
+     bool "FPC 1020 support"
+     depends on INPUT && I2C
+     help
+       Say Y here if you wish to include support for FPC 1020 driver.
+
 endif
