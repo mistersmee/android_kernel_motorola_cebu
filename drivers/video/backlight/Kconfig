@@ -496,6 +496,11 @@ config BACKLIGHT_AW99703
 	help
 	  Support for backlight control on AWINIC aw99703 device.
 
+config BACKLIGHT_KTD3136
+	tristate "SiliconMitus KTD3136 Backlight driver"
+	depends on I2C
+	help
+		Support for backlight control on SiliconMitus KTD3136 device.
 
 endif # BACKLIGHT_CLASS_DEVICE
 
