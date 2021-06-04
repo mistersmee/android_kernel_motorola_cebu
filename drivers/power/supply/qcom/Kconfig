@@ -102,4 +102,11 @@ config SMB1398_CHARGER
 	      wireless charger receiver and provide the input for downstream
 	      chargers.
 
+config QPNP_ADAPTIVE_CHARGE
+	tristate "Qcom adaptive charging support"
+	depends on MFD_I2C_PMIC
+	help
+	  Say Y to include the support of Qualcomm Technologies, Inc.'s
+		adaptive charging driver.
+
 endmenu
