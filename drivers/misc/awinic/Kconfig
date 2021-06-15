@@ -3,7 +3,7 @@
 #
 
 menuconfig INPUT_AWINIC_HAPTIC
-	bool "Awinic Haptic"
+	tristate "Awinic Haptic"
 	default n
 	help
 	  Enables Awinic Haptic driver.
