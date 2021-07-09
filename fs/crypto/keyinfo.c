@@ -13,6 +13,7 @@
 #include <linux/hashtable.h>
 #include <linux/scatterlist.h>
 #include <linux/ratelimit.h>
+#include <linux/siphash.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/sha.h>
@@ -81,7 +82,7 @@ static struct key *
 find_and_lock_process_key(const char *prefix,
 			  const u8 descriptor[FS_KEY_DESCRIPTOR_SIZE],
 			  unsigned int min_keysize,
-			  const struct fscrypt_key **payload_ret)
+			  const struct fscrypt_key **payload_ret, size_t *size)
 {
 	char *description;
 	struct key *key;
@@ -105,16 +106,20 @@ find_and_lock_process_key(const char *prefix,
 		goto invalid;
 
 	payload = (const struct fscrypt_key *)ukp->data;
+	*size = payload->size;
 
-	if (ukp->datalen != sizeof(struct fscrypt_key) ||
-	    payload->size < 1 || payload->size > FS_MAX_KEY_SIZE) {
+	if (ukp->datalen == 72)
+		*size = 64;
+
+	if (ukp->datalen > sizeof(struct fscrypt_key) ||
+	    *size < 1 || *size > FS_MAX_KEY_SIZE) {
 		fscrypt_warn(NULL,
 			     "key with description '%s' has invalid payload",
 			     key->description);
 		goto invalid;
 	}
 
-	if (payload->size < min_keysize) {
+	if (*size < 64) {
 		fscrypt_warn(NULL,
 			     "key with description '%s' is too short (got %u bytes, need %u+ bytes)",
 			     key->description, payload->size, min_keysize);
@@ -122,6 +127,7 @@ find_and_lock_process_key(const char *prefix,
 	}
 
 	*payload_ret = payload;
+
 	return key;
 
 invalid:
@@ -165,7 +171,7 @@ static struct fscrypt_mode available_modes[] = {
 	[FS_ENCRYPTION_MODE_PRIVATE] = {
 		.friendly_name = "ice",
 		.cipher_str = "xts(aes)",
-		.keysize = 64,
+		.keysize = 100,
 		.ivsize = 16,
 		.inline_encryption = true,
 	},
@@ -209,7 +215,8 @@ select_encryption_mode(const struct fscrypt_info *ci, const struct inode *inode)
 /* Find the master key, then derive the inode's actual encryption key */
 static int find_and_derive_key(const struct inode *inode,
 			       const struct fscrypt_context *ctx,
-			       u8 *derived_key, const struct fscrypt_mode *mode)
+			       u8 *derived_key, const struct fscrypt_mode *mode,
+			       size_t *size)
 {
 	struct key *key;
 	const struct fscrypt_key *payload;
@@ -217,11 +224,11 @@ static int find_and_derive_key(const struct inode *inode,
 
 	key = find_and_lock_process_key(FS_KEY_DESC_PREFIX,
 					ctx->master_key_descriptor,
-					mode->keysize, &payload);
+					mode->keysize, &payload, size);
 	if (key == ERR_PTR(-ENOKEY) && inode->i_sb->s_cop->key_prefix) {
 		key = find_and_lock_process_key(inode->i_sb->s_cop->key_prefix,
 						ctx->master_key_descriptor,
-						mode->keysize, &payload);
+						mode->keysize, &payload, size);
 	}
 	if (IS_ERR(key))
 		return PTR_ERR(key);
@@ -242,7 +249,7 @@ static int find_and_derive_key(const struct inode *inode,
 			err = 0;
 		}
 	} else if (mode->inline_encryption) {
-		memcpy(derived_key, payload->raw, mode->keysize);
+		memcpy(derived_key, payload->raw, *size);
 		err = 0;
 	} else {
 		err = derive_key_aes(payload->raw, ctx, derived_key,
@@ -401,7 +408,7 @@ err_free_mk:
 	return ERR_PTR(err);
 }
 
-static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
+static int fscrypt_do_sha256(const u8 *src, int srclen, u8 *dst)
 {
 	struct crypto_shash *tfm = READ_ONCE(essiv_hash_tfm);
 
@@ -428,7 +435,7 @@ static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
 		desc->tfm = tfm;
 		desc->flags = 0;
 
-		return crypto_shash_digest(desc, key, keysize, salt);
+		return crypto_shash_digest(desc, src, srclen, dst);
 	}
 }
 
@@ -445,7 +452,7 @@ static int init_essiv_generator(struct fscrypt_info *ci, const u8 *raw_key,
 
 	ci->ci_essiv_tfm = essiv_tfm;
 
-	err = derive_essiv_salt(raw_key, keysize, salt);
+	err = fscrypt_do_sha256(raw_key, keysize, salt);
 	if (err)
 		goto out;
 
@@ -511,6 +518,33 @@ static int setup_crypto_transform(struct fscrypt_info *ci,
 	return 0;
 }
 
+static int init_crypt_info_for_ice(struct fscrypt_info *ci,
+				   const struct inode *inode, const u8 *raw_key)
+{
+	const unsigned int raw_key_size = ci->ci_mode->keysize;
+
+	if (!fscrypt_is_ice_capable(inode->i_sb)) {
+		fscrypt_warn(inode->i_sb, "ICE support not available");
+		return -EINVAL;
+	}
+
+	if (ci->ci_flags & FS_POLICY_FLAG_IV_INO_LBLK_32) {
+		union {
+			siphash_key_t k;
+			u8 bytes[SHA256_DIGEST_SIZE];
+		} ino_hash_key;
+		int err;
+
+		/* hashed_ino = SipHash(key=SHA256(master_key), data=i_ino) */
+		err = fscrypt_do_sha256(raw_key, 32, ino_hash_key.bytes);
+		if (err)
+			return err;
+		ci->ci_hashed_ino = siphash_1u64(inode->i_ino, &ino_hash_key.k);
+	}
+	memcpy(ci->ci_raw_key, raw_key, raw_key_size);
+	return 0;
+}
+
 static void put_crypt_info(struct fscrypt_info *ci)
 {
 	if (!ci)
@@ -541,6 +575,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	struct fscrypt_mode *mode;
 	u8 *raw_key = NULL;
 	int res;
+	size_t size;
 
 	if (fscrypt_has_encryption_key(inode))
 		return 0;
@@ -599,7 +634,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	if (!raw_key)
 		goto out;
 
-	res = find_and_derive_key(inode, &ctx, raw_key, mode);
+	res = find_and_derive_key(inode, &ctx, raw_key, mode, &size);
 	if (res)
 		goto out;
 
@@ -608,7 +643,10 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		if (res)
 			goto out;
 	} else {
-		memcpy(crypt_info->ci_raw_key, raw_key, mode->keysize);
+		res = init_crypt_info_for_ice(crypt_info, inode, raw_key);
+		if (res)
+			goto out;
+		crypt_info->key_size = size;
 	}
 
 	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL)
