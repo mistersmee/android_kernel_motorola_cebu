@@ -1,0 +1,11 @@
+#
+# Focaltech touchscreen driver configuration
+#
+config TOUCHSCREEN_FOCALTECH_0FLASH_MMI
+	tristate "Focaltech 0flash touchscreen in MMI revision"
+	help
+	  Say Y here if you have a Focaltech touchscreen connected
+	  to your system.
+	  This revision supports MMI features.
+
+	  If unsure, say N.

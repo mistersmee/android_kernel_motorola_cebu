@@ -1,0 +1,19 @@
+# add -Wall to try to catch everything we can.
+EXTRA_CFLAGS += -Wall
+EXTRA_CFLAGS += -Iinclude -Ifocaltech_test -I.
+
+obj-$(CONFIG_TOUCHSCREEN_FOCALTECH_0FLASH_MMI) := focaltech_0flash_mmi.o
+focaltech_0flash_mmi-objs += focaltech_core.o
+focaltech_0flash_mmi-objs += focaltech_esdcheck.o
+focaltech_0flash_mmi-objs += focaltech_ex_fun.o
+focaltech_0flash_mmi-objs += focaltech_ex_mode.o
+focaltech_0flash_mmi-objs += focaltech_flash.o
+focaltech_0flash_mmi-objs += focaltech_gesture.o
+focaltech_0flash_mmi-objs += focaltech_point_report_check.o
+focaltech_0flash_mmi-objs += focaltech_test/focaltech_test.o
+focaltech_0flash_mmi-objs += focaltech_test/focaltech_test_ini.o
+
+EXTRA_CFLAGS += -DCONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8006S_AA
+focaltech_0flash_mmi-objs += focaltech_test/supported_ic/focaltech_test_ft8006sp.o
+focaltech_0flash_mmi-objs += focaltech_flash_ft8006s.o
+focaltech_0flash_mmi-objs += focaltech_spi_v1_1_1.o
