@@ -60,7 +60,7 @@ config TOUCHSCREEN_HIMAX_IC_HX83113
 		help
 		This enables support for HIMAX CHIPSET of HX83113.
 
-+config TOUCHSCREEN_HIMAX_IC_HX83112
+config TOUCHSCREEN_HIMAX_IC_HX83112
         tristate "HIMAX chipset HX83112 function"
 		depends on TOUCHSCREEN_HIMAX_INCELL
 		help
