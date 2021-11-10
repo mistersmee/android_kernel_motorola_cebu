@@ -4093,10 +4093,15 @@ CONFIG_ION_POOL_FILL_MARK=16
 #
 # CONFIG_XIL_AXIS_FIFO is not set
 # CONFIG_EROFS_FS is not set
+
+#
+# Qualcomm Atheros CLD WLAN module
+#
+CONFIG_QCA_CLD_WLAN=m
 # CONFIG_GOLDFISH is not set
 # CONFIG_CHROME_PLATFORMS is not set
 
-#
+
 # Qualcomm technologies inc. MSM specific device drivers
 #
 CONFIG_MSM_EXT_DISPLAY=y
