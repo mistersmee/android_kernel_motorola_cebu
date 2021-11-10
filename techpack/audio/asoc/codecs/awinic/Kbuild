@@ -1,0 +1,11 @@
+# add -Wall to try to catch everything we can.
+EXTRA_CFLAGS += -Wall
+EXTRA_CFLAGS += -I$(TOP)/vendor/qcom/opensource/audio-kernel/include
+EXTRA_CFLAGS += -I$(TOP)/vendor/qcom/opensource/audio-kernel/include/uapi/
+
+ifneq (,$(filter y, $(CONFIG_NAIRO_DTB) $(CONFIG_KIEV_DTB)))
+EXTRA_CFLAGS += -DCONFIG_AW882XX_CODEC -DCONFIG_AW882XX_DSP
+endif
+
+aw882xx_k419-objs = aw882xx.o
+obj-$(CONFIG_SND_SOC_AWINIC_AW882XX) += aw882xx_k419.o
