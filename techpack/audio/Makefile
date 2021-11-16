@@ -23,7 +23,10 @@ ifeq ($(CONFIG_ARCH_BENGAL), y)
 include $(srctree)/techpack/audio/config/bengalauto.conf
 export $(shell sed 's/=.*//' $(srctree)/techpack/audio/config/bengalauto.conf)
 endif
-
+ifeq ($(CONFIG_CEBU_DTB), y)
+include $(srctree)/techpack/audio/config/bengalcebu.conf
+export $(shell sed 's/=.*//' $(srctree)/techpack/audio/config/bengalcebu.conf)
+endif
 # Use USERINCLUDE when you must reference the UAPI directories only.
 USERINCLUDE     += \
                 -I$(srctree)/techpack/audio/include/uapi \
@@ -58,6 +61,11 @@ endif
 ifeq ($(CONFIG_ARCH_BENGAL), y)
 LINUXINCLUDE    += \
                 -include $(srctree)/techpack/audio/config/bengalautoconf.h
+endif
+ifeq ($(CONFIG_CEBU_DTB), y)
+LINUXINCLUDE    += \
+                -include $(srctree)/techpack/audio/config/bengalcebu_asoc.h \
+                -include $(srctree)/techpack/audio/config/bengalcebu.h
 endif
 obj-y += soc/
 obj-y += dsp/
