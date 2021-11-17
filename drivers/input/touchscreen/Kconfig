@@ -1353,9 +1353,13 @@ source "drivers/input/touchscreen/synaptics_tcm/Kconfig"
 
 source "drivers/input/touchscreen/focaltech_0flash_mmi/Kconfig"
 
+source "drivers/input/touchscreen/nova_0flash_mmi/Kconfig"
+
 source "drivers/input/touchscreen/focaltech_touch/Kconfig"
 
 source "drivers/input/touchscreen/nt36xxx/Kconfig"
+
+source "drivers/input/touchscreen/chipone_tddi_mmi/Kconfig"
 
 config TOUCHSCREEN_HIMAX_CHIPSET
 	bool "Himax touchpanel CHIPSET"

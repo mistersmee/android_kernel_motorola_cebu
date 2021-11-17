@@ -116,3 +116,5 @@ obj-$(CONFIG_TOUCHSCREEN_FTS)	+= focaltech_touch/
 obj-$(CONFIG_TOUCHSCREEN_NT36XXX)	+= nt36xxx/
 obj-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET)	+= hxchipset/
 obj-$(CONFIG_TOUCHSCREEN_FOCALTECH_0FLASH_MMI) += focaltech_0flash_mmi/
+obj-$(CONFIG_CHIPONE_TDDI_MMI)	+= chipone_tddi_mmi/
+obj-$(CONFIG_TOUCHSCREEN_NOVA_0FLASH_MMI) += nova_0flash_mmi/
