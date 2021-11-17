@@ -1,0 +1,5 @@
+config MMI_INFO
+  tristate "Motorola MMI info driver"
+  default n
+  help
+    Say Y to enable Motorola MMI info driver.
