@@ -77,3 +77,6 @@ obj-$(CONFIG_QTI_MAXIM_FAN_CONTROLLER) += max31760.o
 obj-$(CONFIG_QTI_XR_SMRTVWR_MISC) += qxr-stdalonevwr.o
 obj-$(CONFIG_FPR_FPC)		+= fpr_FingerprintCard/
 obj-$(CONFIG_ABOV_MMI_OVERLAY)	+= abov_mmi_overlay/
+obj-$(CONFIG_DTS201A_MMI) += dts201a/
+obj-$(CONFIG_MMI_SYS_TEMP) += mmi_sys_temp/
+obj-$(CONFIG_MOTO_UTAG) += utag/

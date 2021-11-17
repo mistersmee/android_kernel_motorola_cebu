@@ -1,0 +1,5 @@
+config MOTO_UTAG
+	tristate "Motorola Utag driver"
+	default n
+	help
+		Say Y to build Motorola Utag driver.
