@@ -1,1 +1,1 @@
-obj-$(CONFIG_MOT_UTAG)	+= utags.o
+obj-$(CONFIG_MOTO_UTAG)	+= utags.o
