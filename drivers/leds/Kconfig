@@ -799,6 +799,21 @@ config LEDS_QPNP_VIBRATOR_LDO
 	  peripheral found on Qualcomm Technologies, Inc. QPNP PMICs.
 	  The vibrator-ldo peripheral is capable of driving ERM vibrators.
 
+config LEDS_KTD3136
+	tristate "SiliconMitus KTD3136 Backlight driver chip"
+	depends on LEDS_CLASS && MFD_SPMI_PMIC
+	help
+	Say Y to enable support for SiliconMitus KTD3136
+	Backlight driver chip.
+
+config LEDS_AW99703
+	tristate "Awinic 99703 backlight driver chip"
+	depends on LEDS_CLASS && MFD_SPMI_PMIC
+	help
+	Say Y to enable support for Awinic 99703
+	Backlight driver chip.
+
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
