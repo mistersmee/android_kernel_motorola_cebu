@@ -1,0 +1,6 @@
+config DTS201A_MMI
+	tristate "Partron DTS201A Thermopile Sensor module driver"
+	default n
+	help
+		Say Y if you want to enable support for Partron DTS201A
+		Thermopile Sensor module driver.
