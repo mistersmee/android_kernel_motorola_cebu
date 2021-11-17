@@ -145,4 +145,9 @@ config SMB1398_CHARGER
 	      wireless charger receiver and provide the input for downstream
 	      chargers.
 
+config QPNP_ADAPTIVE_CHARGE
+	tristate "Adaptive charge MMI driver"
+	depends on I2C
+	help
+		Say Y to support QPNP adaptive charging
 endmenu
