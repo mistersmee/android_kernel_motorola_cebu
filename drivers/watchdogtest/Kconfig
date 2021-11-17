@@ -1,0 +1,5 @@
+config WATCHDOGTEST
+  tristate "Motorola CPU watchdog test driver"
+  default n
+  help
+    Say Y to build Motorola CPU watchdog test driver.

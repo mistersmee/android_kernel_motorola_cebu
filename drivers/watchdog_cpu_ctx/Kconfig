@@ -1,0 +1,5 @@
+config WATCHDOG_CPU_CTX
+  tristate "Motorola CPU watchdog CTX driver"
+  default n
+  help
+    Say Y to build Motorola CPU watchdog CTX driver.
