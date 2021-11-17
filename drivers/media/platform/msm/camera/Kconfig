@@ -1,0 +1,5 @@
+config CCI_INTF
+  tristate "Moto CCI intf module"
+  default n
+  help
+    Say Y if you want to build CCI intf module.
