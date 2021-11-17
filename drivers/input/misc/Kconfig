@@ -885,4 +885,12 @@ config INPUT_SC27XX_VIBRA
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
 
+config QPNP_POWER_ON_MMI
+	tristate "Qualcomm Power on MMI drivers"
+	depends on I2C
+	help
+		Say Y to enable support for the Qcom power on MMI driver.
+
+source "drivers/input/misc/fpc_fps_mmi/Kconfig"
+source "drivers/input/misc/chipone_fps_mmi/Kconfig"
 endif

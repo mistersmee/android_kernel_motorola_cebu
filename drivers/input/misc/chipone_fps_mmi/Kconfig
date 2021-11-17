@@ -1,0 +1,5 @@
+config CHIPONE_FPS_MMI
+	tristate "Chipone Fingerprint sensor device driver"
+	default n
+	help
+		Say Y to enable support for the Chipone Fingerprint sensor MMI driver.

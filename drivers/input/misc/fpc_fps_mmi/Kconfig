@@ -1,0 +1,13 @@
+config INPUT_FPC1020
+ tristate "FPC1020 Fingerprint sensor device driver"
+ default n
+ help
+  Say Y if you want to enable support for the FPC1020 Fingerprint
+	sensor.
+
+config INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
+tristate "FPC1020 Fingerprint sensor save to class device feature"
+ default n
+ help
+  Say Y if you want to enable support for the FPC1020 Fingerprint
+	sensor save to class device feature.
