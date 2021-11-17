@@ -10,7 +10,12 @@ menuconfig SPECTRA_CAMERA
       IFE and postprocessing drivers.
 
 source "drivers/media/platform/msm/vidc_3x/Kconfig"
-source "drivers/media/platform/msm/camera/Kconfig"
+
+config CCI_INTF
+  tristate "Moto CCI intf module"
+  default n
+  help
+    Say Y if you want to build CCI intf module.
 
 menuconfig MSM_CAMERA
      bool "QTI MSM camera and video capture support"

@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/version.h>
-#include <cam_cci_dev.h>
+#include "cam_cci_dev.h"
 #include <media/v4l2-ioctl.h>
 #include <media/cci_intf.h>
 
