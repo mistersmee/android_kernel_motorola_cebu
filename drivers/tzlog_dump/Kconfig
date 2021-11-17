@@ -1,0 +1,5 @@
+config TZLOG_DUMP
+  tristate "Motorola TZ log dump driver"
+  default n
+  help
+    Say Y to enable Motorola TZ log dump driver.
