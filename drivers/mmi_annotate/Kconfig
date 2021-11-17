@@ -1,0 +1,5 @@
+config MMI_ANNOTATE
+  tristate "Motorola MMI annotate driver"
+  default n
+  help
+    Say Y to enable Motorola MMI annotate driver.

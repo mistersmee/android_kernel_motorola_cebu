@@ -1,0 +1,5 @@
+config MOTO_USBNET
+  tristate "Motorola usbnet driver"
+  default n
+  help
+    Say Y to enable Motorola usbnet driver.
