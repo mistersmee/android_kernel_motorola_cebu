@@ -1,0 +1,6 @@
+config ABOV_MMI_OVERLAY
+	tristate "Abov SAR MMI overlay module"
+	depends on I2C
+	default n
+	help
+	  An Abov SAR MMI module. Say Y when you want to support this tool.
