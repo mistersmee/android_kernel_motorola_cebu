@@ -805,8 +805,8 @@ static struct pil_reset_ops pil_ops_trusted = {
 static void log_failure_reason(const struct pil_tz_data *d)
 {
 	size_t size;
-	char *smem_reason;
-	const char *name = d->subsys_desc.name;
+	char *smem_reason, reason[MAX_SSR_REASON_LEN]
+	;const char *name = d->subsys_desc.name;
 
 	if (d->smem_id == -1)
 		return;
@@ -822,8 +822,8 @@ static void log_failure_reason(const struct pil_tz_data *d)
 		return;
 	}
 
-	strlcpy(pil_ssr_reason, smem_reason, min((size_t)size, (size_t)sizeof(pil_ssr_reason)));
-	pr_err("%s subsystem failure reason: %s.\n", name, pil_ssr_reason);
+	strlcpy(reason, smem_reason, min(size, (size_t)MAX_SSR_REASON_LEN));
+	pr_err("%s subsystem failure reason: %s.\n", name, reason);
 }
 
 static int subsys_shutdown(const struct subsys_desc *subsys, bool force_stop)

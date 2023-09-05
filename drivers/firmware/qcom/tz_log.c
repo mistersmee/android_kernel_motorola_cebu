@@ -1504,13 +1504,6 @@ static void tzdbgfs_exit(struct platform_device *pdev)
 	struct dentry *dent_dir;
 	dent_dir = platform_get_drvdata(pdev);
 	debugfs_remove_recursive(dent_dir);
-#else
-    kzfree(tzdbg.disp_buf);
-    remove_proc_subtree(TZDBG_ROOT_DIR, NULL);
-    if (g_qsee_log)
-        dma_free_coherent(&pdev->dev, QSEE_LOG_BUF_SIZE,
-            (void *)g_qsee_log, coh_pmem);
-#endif
 }
 
 static int __update_hypdbg_base(struct platform_device *pdev,
