@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -195,6 +195,7 @@ struct qusb_phy {
 	bool			is_gpio_active_low;
 	int			notifier_irq;
 	bool			is_port_valid;
+	bool			dcp_charger;
 
 	/* debugfs entries */
 	struct dentry		*root;
@@ -505,10 +506,25 @@ static void qusb_phy_write_seq(void __iomem *base, u32 *seq, int cnt,
 	}
 }
 
+static void qusb_phy_reset(struct qusb_phy *qphy)
+{
+	int ret = 0;
+
+	ret = reset_control_assert(qphy->phy_reset);
+	if (ret)
+		dev_err(qphy->phy.dev, "%s: phy_reset assert failed\n",
+				__func__);
+	usleep_range(100, 150);
+	ret = reset_control_deassert(qphy->phy_reset);
+	if (ret)
+		dev_err(qphy->phy.dev, "%s: phy_reset deassert failed\n",
+				__func__);
+}
+
 static int qusb_phy_init(struct usb_phy *phy)
 {
 	struct qusb_phy *qphy = container_of(phy, struct qusb_phy, phy);
-	int ret, reset_val = 0;
+	int reset_val = 0;
 	u8 reg;
 	bool pll_lock_fail = false;
 
@@ -537,13 +553,7 @@ static int qusb_phy_init(struct usb_phy *phy)
 	}
 
 	/* Perform phy reset */
-	ret = reset_control_assert(qphy->phy_reset);
-	if (ret)
-		dev_err(phy->dev, "%s: phy_reset assert failed\n", __func__);
-	usleep_range(100, 150);
-	ret = reset_control_deassert(qphy->phy_reset);
-	if (ret)
-		dev_err(phy->dev, "%s: phy_reset deassert failed\n", __func__);
+	qusb_phy_reset(qphy);
 
 	/* Disable the PHY */
 	if (qphy->major_rev < 2)
@@ -907,15 +917,7 @@ static int qusb_phy_drive_dp_pulse(struct usb_phy *phy,
 	}
 	qusb_phy_gdsc(qphy, true);
 	qusb_phy_enable_clocks(qphy, true);
-
-	ret = reset_control_assert(qphy->phy_reset);
-	if (ret)
-		dev_err(qphy->phy.dev, "phyassert failed\n");
-	usleep_range(100, 150);
-	ret = reset_control_deassert(qphy->phy_reset);
-	if (ret)
-		dev_err(qphy->phy.dev, "deassert failed\n");
-
+	qusb_phy_reset(qphy);
 	/* Configure PHY to enable control on DP/DM lines */
 	writel_relaxed(CLAMP_N_EN | FREEZIO_N | POWER_DOWN,
 				qphy->base + QUSB2PHY_PORT_POWERDOWN);
@@ -1002,13 +1004,7 @@ static int qusb_phy_dpdm_regulator_enable(struct regulator_dev *rdev)
 			qusb_phy_enable_clocks(qphy, true);
 
 			dev_dbg(qphy->phy.dev, "RESET QUSB PHY\n");
-			ret = reset_control_assert(qphy->phy_reset);
-			if (ret)
-				dev_err(qphy->phy.dev, "phyassert failed\n");
-			usleep_range(100, 150);
-			ret = reset_control_deassert(qphy->phy_reset);
-			if (ret)
-				dev_err(qphy->phy.dev, "deassert failed\n");
+			qusb_phy_reset(qphy);
 
 			/*
 			 * Phy in non-driving mode leaves Dp and Dm
@@ -1056,6 +1052,13 @@ static int qusb_phy_dpdm_regulator_disable(struct regulator_dev *rdev)
 		if (!qphy->cable_connected)
 			qusb_phy_clear_tcsr_clamp(qphy, false);
 
+		/*
+		 * Phy reset is needed in case multiple instances
+		 * of HSPHY exists with shared power supplies. This
+		 * reset is to bring out the PHY from high-Z state
+		 * and avoid extra current consumption.
+		 */
+		qusb_phy_reset(qphy);
 		ret = qusb_phy_enable_power(qphy, false);
 		if (ret < 0) {
 			dev_dbg(qphy->phy.dev,
@@ -1391,18 +1394,7 @@ static int qusb_phy_prepare_chg_det(struct qusb_phy *qphy)
 
 static void qusb_phy_unprepare_chg_det(struct qusb_phy *qphy)
 {
-	int ret;
-
-	ret = reset_control_assert(qphy->phy_reset);
-	if (ret)
-		dev_err(qphy->phy.dev, "phyassert failed\n");
-
-	usleep_range(100, 150);
-
-	ret = reset_control_deassert(qphy->phy_reset);
-	if (ret)
-		dev_err(qphy->phy.dev, "deassert failed\n");
-
+	qusb_phy_reset(qphy);
 	qusb_phy_enable_clocks(qphy, false);
 	qusb_phy_clear_tcsr_clamp(qphy, false);
 	qusb_phy_enable_power(qphy, false);
@@ -1523,13 +1515,14 @@ static void qusb_phy_port_state_work(struct work_struct *w)
 		if (status) {
 			qusb_phy_notify_charger(qphy,
 						POWER_SUPPLY_TYPE_USB_DCP);
+			qphy->dcp_charger = true;
 		} else {
 			qusb_phy_notify_charger(qphy,
 						POWER_SUPPLY_TYPE_USB_CDP);
+			qusb_phy_unprepare_chg_det(qphy);
 			qusb_phy_notify_extcon(qphy, EXTCON_USB, 1);
 		}
 
-		qusb_phy_unprepare_chg_det(qphy);
 		qphy->port_state = PORT_CHG_DET_DONE;
 		/*
 		 * Fall through to check if cable got disconnected
@@ -1537,6 +1530,10 @@ static void qusb_phy_port_state_work(struct work_struct *w)
 		 */
 	case PORT_CHG_DET_DONE:
 		if (!vbus_active) {
+			if (qphy->dcp_charger) {
+				qphy->dcp_charger = false;
+				qusb_phy_unprepare_chg_det(qphy);
+			}
 			qphy->port_state = PORT_UNKNOWN;
 			qusb_phy_notify_extcon(qphy, EXTCON_USB, 0);
 		}

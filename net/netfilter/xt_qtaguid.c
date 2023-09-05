@@ -2428,7 +2428,6 @@ int qtaguid_untag(struct socket *el_socket, bool kernel)
 	 */
 	if (sock_tag_entry->list.next)
 		list_del(&sock_tag_entry->list);
-	
 	spin_unlock_bh(&uid_tag_data_tree_lock);
 	/*
 	 * We don't free tag_ref from the utd_entry here,

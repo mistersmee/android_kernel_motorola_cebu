@@ -2374,18 +2374,13 @@ static void unqueue_me_pi(struct futex_q *q)
 	spin_unlock(q->lock_ptr);
 }
 
-static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
-				struct task_struct *argowner)
+static int __fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
+				  struct task_struct *argowner)
 {
+	u32 uval, uninitialized_var(curval), newval, newtid;
 	struct futex_pi_state *pi_state = q->pi_state;
-	u32 uval, uninitialized_var(curval), newval;
 	struct task_struct *oldowner, *newowner;
-	u32 newtid;
-	int ret, err = 0;
-
-	lockdep_assert_held(q->lock_ptr);
-
-	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
+	int err = 0;
 
 	oldowner = pi_state->owner;
 
@@ -2419,14 +2414,12 @@ retry:
 			 * We raced against a concurrent self; things are
 			 * already fixed up. Nothing to do.
 			 */
-			ret = 0;
-			goto out_unlock;
+			return 0;
 		}
 
 		if (__rt_mutex_futex_trylock(&pi_state->pi_mutex)) {
-			/* We got the lock after all, nothing to fix. */
-			ret = 0;
-			goto out_unlock;
+			/* We got the lock. pi_state is correct. Tell caller. */
+			return 1;
 		}
 
 		/*
@@ -2453,8 +2446,7 @@ retry:
 			 * We raced against a concurrent self; things are
 			 * already fixed up. Nothing to do.
 			 */
-			ret = 0;
-			goto out_unlock;
+			return 1;
 		}
 		newowner = argowner;
 	}
@@ -2485,9 +2477,8 @@ retry:
 	 * itself.
 	 */
 	pi_state_update_owner(pi_state, newowner);
-	raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
 
-	return 0;
+	return argowner == current;
 
 	/*
 	 * In order to reschedule or handle a page fault, we need to drop the
@@ -2508,17 +2499,16 @@ handle_err:
 
 	switch (err) {
 	case -EFAULT:
-		ret = fault_in_user_writeable(uaddr);
+		err = fault_in_user_writeable(uaddr);
 		break;
 
 	case -EAGAIN:
 		cond_resched();
-		ret = 0;
+		err = 0;
 		break;
 
 	default:
 		WARN_ON_ONCE(1);
-		ret = err;
 		break;
 	}
 
@@ -2528,36 +2518,44 @@ handle_err:
 	/*
 	 * Check if someone else fixed it for us:
 	 */
-	if (pi_state->owner != oldowner) {
-		ret = 0;
-		goto out_unlock;
-	}
+	if (pi_state->owner != oldowner)
+		return argowner == current;
 
-	if (ret)
-		goto out_unlock;
+	/* Retry if err was -EAGAIN or the fault in succeeded */
+	if (!err)
+		goto retry;
 
-	goto retry;
-
-       /*
-        * fault_in_user_writeable() failed so user state is immutable. At
-        * best we can make the kernel state consistent but user state will
-        * be most likely hosed and any subsequent unlock operation will be
-        * rejected due to PI futex rule [10].
-        *
-        * Ensure that the rtmutex owner is also the pi_state owner despite
-        * the user space value claiming something different. There is no
-        * point in unlocking the rtmutex if current is the owner as it
-        * would need to wait until the next waiter has taken the rtmutex
-        * to guarantee consistent state. Keep it simple. Userspace asked
-        * for this wreckaged state.
-        *
-        * The rtmutex has an owner - either current or some other
-        * task. See the EAGAIN loop above.
-        */
+	/*
+	 * fault_in_user_writeable() failed so user state is immutable. At
+	 * best we can make the kernel state consistent but user state will
+	 * be most likely hosed and any subsequent unlock operation will be
+	 * rejected due to PI futex rule [10].
+	 *
+	 * Ensure that the rtmutex owner is also the pi_state owner despite
+	 * the user space value claiming something different. There is no
+	 * point in unlocking the rtmutex if current is the owner as it
+	 * would need to wait until the next waiter has taken the rtmutex
+	 * to guarantee consistent state. Keep it simple. Userspace asked
+	 * for this wreckaged state.
+	 *
+	 * The rtmutex has an owner - either current or some other
+	 * task. See the EAGAIN loop above.
+	 */
 	pi_state_update_owner(pi_state, rt_mutex_owner(&pi_state->pi_mutex));
 
+	return err;
+}
 
-out_unlock:
+static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
+				struct task_struct *argowner)
+{
+	struct futex_pi_state *pi_state = q->pi_state;
+	int ret;
+
+	lockdep_assert_held(q->lock_ptr);
+
+	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
+	ret = __fixup_pi_state_owner(uaddr, q, argowner);
 	raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
 	return ret;
 }
@@ -2581,8 +2579,6 @@ static long futex_wait_restart(struct restart_block *restart);
  */
 static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 {
-	int ret = 0;
-
 	if (locked) {
 		/*
 		 * Got the lock. We might not be the anticipated owner if we
@@ -2593,8 +2589,8 @@ static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 		 * stable state, anything else needs more attention.
 		 */
 		if (q->pi_state->owner != current)
-			ret = fixup_pi_state_owner(uaddr, q, current);
-		goto out;
+			return fixup_pi_state_owner(uaddr, q, current);
+		return 1;
 	}
 
 	/*
@@ -2605,24 +2601,17 @@ static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 	 * Another speculative read; pi_state->owner == current is unstable
 	 * but needs our attention.
 	 */
-	if (q->pi_state->owner == current) {
-		ret = fixup_pi_state_owner(uaddr, q, NULL);
-		goto out;
-	}
+	if (q->pi_state->owner == current)
+		return fixup_pi_state_owner(uaddr, q, NULL);
 
 	/*
 	 * Paranoia check. If we did not take the lock, then we should not be
-	 * the owner of the rt_mutex.
+	 * the owner of the rt_mutex. Warn and establish consistent state.
 	 */
-	if (rt_mutex_owner(&q->pi_state->pi_mutex) == current) {
-		printk(KERN_ERR "fixup_owner: ret = %d pi-mutex: %p "
-				"pi-state %p\n", ret,
-				q->pi_state->pi_mutex.owner,
-				q->pi_state->owner);
-	}
+	if (WARN_ON_ONCE(rt_mutex_owner(&q->pi_state->pi_mutex) == current))
+		return fixup_pi_state_owner(uaddr, q, current);
 
-out:
-	return ret ? ret : locked;
+	return 0;
 }
 
 /**
@@ -3334,6 +3323,11 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 			 */
 			put_pi_state(q.pi_state);
 			spin_unlock(q.lock_ptr);
+			/*
+			 * Adjust the return value. It's either -EFAULT or
+			 * success (1) but the caller expects 0 for success.
+			 */
+			ret = ret < 0 ? ret : 0;
 		}
 	} else {
 		struct rt_mutex *pi_mutex;

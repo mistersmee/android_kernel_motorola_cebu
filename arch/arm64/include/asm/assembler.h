@@ -760,7 +760,7 @@ alternative_cb_end
 	stp	x2, x3, [sp, #-16]!
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_3
 alternative_cb	arm64_update_smccc_conduit
-	nop					// Patched to SMC/HVC #0
+	nop			// Patched to SMC/HVC #0
 alternative_cb_end
 	ldp	x2, x3, [sp], #16
 	ldp	x0, x1, [sp], #16
